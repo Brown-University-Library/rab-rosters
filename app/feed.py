@@ -1,6 +1,7 @@
 from flask import request, jsonify
-import os
+from app import app
 
+import os
 
 @app.route('/')
 def root():
