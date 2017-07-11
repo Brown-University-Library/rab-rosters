@@ -1,3 +1,3 @@
 *.pyc
 config/development.py
-app/data/rosters/*.json
+app/rosters/*.json

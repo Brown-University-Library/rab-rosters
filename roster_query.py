@@ -5,16 +5,17 @@ import csv
 import os
 import sys
 import json
+import argparse
 
 query_url = app.config['RAB_QUERY_API']
 email = app.config['ADMIN_EMAIL']
 passw = app.config['ADMIN_PASS']
 
-with open('app/data/org_ids.csv','rb') as f:
-	dept_ids = []
-	rdr = csv.reader(f)
-	for row in rdr:
-		dept_ids.append(row)
+# with open('data/org_ids.csv','rb') as f:
+# 	dept_ids = []
+# 	rdr = csv.reader(f)
+# 	for row in rdr:
+# 		dept_ids.append(row)
 
 prp_map = {
     '@id': 'url',
@@ -219,17 +220,34 @@ def cast_roster_data(data, edu_map):
             raise Exception(k)
     return out
 
-def main(org_uri):
-    # org_uri = 'http://vivo.brown.edu/individual/org-brown-univ-dept56'
-    roster_resp = query_roster(org_uri)
-    roster_list, edu_map = extract_education_data(roster_resp)
-    roster_data = []
-    for prsn in roster_list:
-        prsn_data = cast_roster_data(prsn, edu_map)
-        roster_data.append(prsn_data)
-	with open(os.path.join('app/data/rosters',org_uri[33:]+'.json'), 'w') as f:
-		json.dump(roster_data, f, indent=2, sort_keys=True)
+def main(uri=None, all_uris=False):
+    uri_tuples = []
+    if all_uris:
+        with open('data/org_ids.csv','rb') as f:
+            rdr = csv.reader(f)
+            for row in rdr:
+                uri_tuples.append(row)
+    elif uri:
+        uri_tuples.append( (uri, uri[33:]) )
+    for uri_tup in uri_tuples:
+        roster_resp = query_roster(uri_tup[0])
+        roster_list, edu_map = extract_education_data(roster_resp)
+        roster_data = []
+        for prsn in roster_list:
+            prsn_data = cast_roster_data(prsn, edu_map)
+            roster_data.append(prsn_data)
+    	with open(os.path.join('app/rosters', uri_tup[1] +'.json'), 'w') as f:
+    		json.dump(roster_data, f, indent=2, sort_keys=True)
 
 if __name__ == "__main__":
-	org_uri = sys.argv[1]
-	main(org_uri)
+    arg_parse = argparse.ArgumentParser()
+    arg_parse.add_argument("-u","--uri")
+    arg_parse.add_argument("-a","--all", action="store_true")
+    arg_parse.add_argument("-t","--test", action="store_true")
+    args = arg_parse.parse_args()
+    if args.uri:
+        main(uri=args.uri)
+    if args.all:
+        main(all_uris=True)
+    if args.test:
+        main(uri='http://vivo.brown.edu/individual/org-brown-univ-dept56')
