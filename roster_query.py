@@ -16,6 +16,45 @@ with open('app/data/org_ids.csv','rb') as f:
 	for row in rdr:
 		dept_ids.append(row)
 
+prp_map = {
+    '@id': 'url',
+    'http://xmlns.com/foaf/0.1/firstName' : 'first',
+    'http://xmlns.com/foaf/0.1/lastName' : 'last',
+    'http://vivoweb.org/ontology/core#middleName' : 'middle',
+    'http://temporary.name.space/fullName' : 'full',
+    'http://vivoweb.org/ontology/core#preferredTitle' : 'title',
+    'http://vivoweb.org/ontology/core#primaryEmail' : 'email',
+    'http://temporary.name.space/fullImage' : 'image',
+    'http://temporary.name.space/image' : 'thumbnail',
+    'http://vivoweb.org/ontology/core#overview' : 'overview',
+    'http://temporary.name.space/affiliations' : 'affiliations',
+    'http://temporary.name.space/researchArea' : 'topics',
+    'http://temporary.name.space/researchGeo' : 'countries',
+    'http://vivoweb.org/ontology/core#educationalTraining' : 'education',
+    'http://temporary.name.space/eduOrg' : 'organization',
+    'http://temporary.name.space/degreeTitle' :'degree',
+    'http://vivo.brown.edu/ontology/vivo-brown/degreeDate' : 'year'
+}
+
+def mint_roster_obj():
+    return {
+        'url' : '',
+        'first' : '',
+        'last' : '',
+        'middle' : '',
+        'full' : '',
+        'title' : '',
+        'email' : '',
+        'image' : 'https://vivo.brown.edu',
+        'thumbnail' : 'https://vivo.brown.edu',
+        'overview' : '',
+        'affiliations' : [],
+        'topics' : [],
+        'countries' : [],
+        'education' : []
+    }
+
+
 def query_roster(org_uri):
 	query = """
 		PREFIX rdf:		<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -28,7 +67,7 @@ def query_roster(org_uri):
         CONSTRUCT {{
             ?subject a vivo:FacultyMember ;
                 #label, first, last, email required
-                rdfs:label ?name ;
+                tmp:fullName ?name ;
                 foaf:firstName ?first ;
                 foaf:lastName ?last ;
                 vivo:middleName ?middle ;
@@ -46,7 +85,7 @@ def query_roster(org_uri):
             ?edu a vivo:EducationalTraining ;
             	blocal:degreeDate ?degreeDate;
             	tmp:eduOrg ?eduLabel ;
-                rdfs:label ?degree .
+                tmp:degreeTitle ?degree .
         }}
         WHERE {{
             #required - label, first, last
@@ -127,13 +166,69 @@ def query_roster(org_uri):
 	if resp.status_code == 200:
 		return resp.json()
 	else:
-		return {}
+		return []
+
+def extract_education_data(dataList):
+    edu_map = {}
+    del_index = []
+    for i, data in enumerate(dataList):
+        try:
+            type_data = data['@type']
+        except:
+            del_index.append(i)
+        if 'http://vivoweb.org/ontology/core#EducationalTraining' in type_data:
+            del_index.append(i)
+            edu_map[data['@id']] = data
+        else:
+            continue
+    newList = [ data for i, data in enumerate(dataList) if i not in del_index ]
+    return ( newList, edu_map )
+
+def cast_edu_data(data):
+    out = {}
+    for k, v in data.items():
+        if k in ('@id', '@type'):
+            continue
+        else:
+            alias = prp_map[k]
+            for obj in v:
+                out[alias] = obj['@value']
+    return out
+
+def cast_roster_data(data, edu_map):
+    out = mint_roster_obj()
+    for k, v in data.items():
+        if k == '@type':
+            continue
+        alias = prp_map[k]
+        if alias == 'education':
+            for eduId in v:
+                eduObj = edu_map[eduId['@id']]
+                edu_cast = cast_edu_data(eduObj)
+                out[alias].append(edu_cast)
+        elif alias == 'url':
+            out[alias] += v
+        elif alias in ( 'affiliations','topics','countries' ):
+            for obj in v:
+                out[alias].append(obj['@value'])
+        elif alias in ( 'first','last','middle','title', 'full',
+                        'email','image','thumbnail','overview'):
+            for obj in v:
+                out[alias] += obj['@value']
+        else:
+            raise Exception(k)
+    return out
 
 def main(org_uri):
-	# org_uri = 'http://vivo.brown.edu/individual/org-brown-univ-dept56'
-	roster_resp = query_roster(org_uri)
+    # org_uri = 'http://vivo.brown.edu/individual/org-brown-univ-dept56'
+    roster_resp = query_roster(org_uri)
+    roster_list, edu_map = extract_education_data(roster_resp)
+    roster_data = []
+    for prsn in roster_list:
+        prsn_data = cast_roster_data(prsn, edu_map)
+        roster_data.append(prsn_data)
 	with open(os.path.join('app/data/rosters',org_uri[33:]+'.json'), 'w') as f:
-		json.dump(roster_resp, f, indent=2, sort_keys=True)
+		json.dump(roster_data, f, indent=2, sort_keys=True)
 
 if __name__ == "__main__":
 	org_uri = sys.argv[1]
