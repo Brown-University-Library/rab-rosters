@@ -6,10 +6,24 @@ import os
 import sys
 import json
 import argparse
+import logging
+import logging.handlers
 
 query_url = app.config['RAB_QUERY_API']
 email = app.config['ADMIN_EMAIL']
 passw = app.config['ADMIN_PASS']
+log_file = app.config['LOG_FILE']
+
+logger = logging.getLogger(__name__)
+handler = logging.handlers.RotatingFileHandler(
+            log_file, maxBytes=100000, backupCount=2)
+formatter = logging.Formatter(
+    '%(asctime)s - %(levelname)s - %(message)s')
+
+logger.setLevel(logging.INFO)
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
 
 prp_map = {
     '@id': 'url',
@@ -215,6 +229,7 @@ def cast_roster_data(data, edu_map):
     return out
 
 def main(uri=None, all_uris=False):
+    logger.info('Initiating roster build')
     uri_tuples = []
     if all_uris:
         with open('data/org_ids.csv','rb') as f:
@@ -224,12 +239,30 @@ def main(uri=None, all_uris=False):
     elif uri:
         uri_tuples.append( (uri, uri[33:]) )
     for uri_tup in uri_tuples:
-        roster_resp = query_roster(uri_tup[0])
-        roster_list, edu_map = extract_education_data(roster_resp)
+        logger.info('Building roster for: {}'.format(uri_tup[1]))
+        try:
+            roster_resp = query_roster(uri_tup[0])
+        except:
+            logger.error(
+                'Failure to query roster for: {}'.format(uri_tup[1]))
+            continue
+        try:
+            roster_list, edu_map = extract_education_data(roster_resp)
+        except:
+            logger.error(
+                'Failure to extract data for: {}'.format(uri_tup[1]))
+            continue
         unit_data = { 'unit': uri_tup[0], 'roster': [] }
         for prsn in roster_list:
-            prsn_data = cast_roster_data(prsn, edu_map)
+            try:
+                prsn_data = cast_roster_data(prsn, edu_map)
+            except:
+                rabid = prsn.get('@id', 'Could not parse RABID')
+                logger.error(
+                    'Failure to cast data for: {}'.format(rabid))
+                continue
             unit_data['roster'].append(prsn_data)
+        logger.info('Writing JSON for: {}'.format(uri_tup[1]))
     	with open(os.path.join('app/rosters', uri_tup[1] +'.json'), 'w') as f:
     		json.dump(unit_data, f, indent=2, sort_keys=True, ensure_ascii=False)
 
