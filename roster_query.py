@@ -11,12 +11,6 @@ query_url = app.config['RAB_QUERY_API']
 email = app.config['ADMIN_EMAIL']
 passw = app.config['ADMIN_PASS']
 
-# with open('data/org_ids.csv','rb') as f:
-# 	dept_ids = []
-# 	rdr = csv.reader(f)
-# 	for row in rdr:
-# 		dept_ids.append(row)
-
 prp_map = {
     '@id': 'url',
     'http://xmlns.com/foaf/0.1/firstName' : 'first',
@@ -57,14 +51,14 @@ def mint_roster_obj():
 
 
 def query_roster(org_uri):
-	query = """
-		PREFIX rdf:		<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-		PREFIX rdfs:	<http://www.w3.org/2000/01/rdf-schema#>
-		PREFIX blocal:	<http://vivo.brown.edu/ontology/vivo-brown/>
-		PREFIX foaf:	<http://xmlns.com/foaf/0.1/>
-		PREFIX vitro:	<http://vitro.mannlib.cornell.edu/ns/vitro/public#>
-		PREFIX vivo:	<http://vivoweb.org/ontology/core#>
-		PREFIX tmp:		<http://temporary.name.space/>
+    query = """
+        PREFIX rdf:		<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX rdfs:	<http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX blocal:	<http://vivo.brown.edu/ontology/vivo-brown/>
+        PREFIX foaf:	<http://xmlns.com/foaf/0.1/>
+        PREFIX vitro:	<http://vitro.mannlib.cornell.edu/ns/vitro/public#>
+        PREFIX vivo:	<http://vivoweb.org/ontology/core#>
+        PREFIX tmp:		<http://temporary.name.space/>
         CONSTRUCT {{
             ?subject a vivo:FacultyMember ;
                 #label, first, last, email required
@@ -84,15 +78,15 @@ def query_roster(org_uri):
                 tmp:researchArea ?raName ;
                 tmp:researchGeo ?countryName .
             ?edu a vivo:EducationalTraining ;
-            	blocal:degreeDate ?degreeDate;
-            	tmp:eduOrg ?eduLabel ;
+                blocal:degreeDate ?degreeDate;
+                tmp:eduOrg ?eduLabel ;
                 tmp:degreeTitle ?degree .
         }}
         WHERE {{
             #required - label, first, last
             {{
             ?subject blocal:hasAffiliation <{0}> ;
-            	a vivo:FacultyMember ;
+                a vivo:FacultyMember ;
                 rdfs:label ?name ;
                 foaf:firstName ?first ;
                 foaf:lastName ?last .
@@ -160,14 +154,14 @@ def query_roster(org_uri):
                 ?dl vitro:directDownloadUrl ?photo .
             }}
         }}
-	""".format(org_uri)
-	headers = {'Accept': 'application/json', 'charset':'utf-8'}	
-	data = { 'email': email, 'password': passw, 'query': query }
-	resp = requests.post(query_url, data=data, headers=headers)
-	if resp.status_code == 200:
-		return resp.json()
-	else:
-		return []
+    """.format(org_uri)
+    headers = {'Accept': 'application/json', 'charset':'utf-8'}	
+    data = { 'email': email, 'password': passw, 'query': query }
+    resp = requests.post(query_url, data=data, headers=headers)
+    if resp.status_code == 200:
+        return resp.json()
+    else:
+        return []
 
 def extract_education_data(dataList):
     edu_map = {}
@@ -193,7 +187,7 @@ def cast_edu_data(data):
         else:
             alias = prp_map[k]
             for obj in v:
-                out[alias] = obj['@value']
+                out[alias] = obj['@value'].encode('utf-8')
     return out
 
 def cast_roster_data(data, edu_map):
@@ -211,11 +205,11 @@ def cast_roster_data(data, edu_map):
             out[alias] += v
         elif alias in ( 'affiliations','topics','countries' ):
             for obj in v:
-                out[alias].append(obj['@value'])
+                out[alias].append(obj['@value'].encode('utf-8'))
         elif alias in ( 'first','last','middle','title', 'full',
                         'email','image','thumbnail','overview'):
             for obj in v:
-                out[alias] += obj['@value']
+                out[alias] += obj['@value'].encode('utf-8')
         else:
             raise Exception(k)
     return out
@@ -232,12 +226,12 @@ def main(uri=None, all_uris=False):
     for uri_tup in uri_tuples:
         roster_resp = query_roster(uri_tup[0])
         roster_list, edu_map = extract_education_data(roster_resp)
-        roster_data = []
+        unit_data = { 'unit': uri_tup[0], 'roster': [] }
         for prsn in roster_list:
             prsn_data = cast_roster_data(prsn, edu_map)
-            roster_data.append(prsn_data)
+            unit_data['roster'].append(prsn_data)
     	with open(os.path.join('app/rosters', uri_tup[1] +'.json'), 'w') as f:
-    		json.dump(roster_data, f, indent=2, sort_keys=True)
+    		json.dump(unit_data, f, indent=2, sort_keys=True, ensure_ascii=False)
 
 if __name__ == "__main__":
     arg_parse = argparse.ArgumentParser()
@@ -250,4 +244,4 @@ if __name__ == "__main__":
     if args.all:
         main(all_uris=True)
     if args.test:
-        main(uri='http://vivo.brown.edu/individual/org-brown-univ-dept56')
+        main(uri='http://vivo.brown.edu/individual/org-brown-univ-dept29')
