@@ -1,18 +1,20 @@
-from app import app
-
 import requests
 import csv
 import os
 import sys
 import json
 import argparse
+import time
 import logging
 import logging.handlers
 
-query_url = app.config['RAB_QUERY_API']
-email = app.config['ADMIN_EMAIL']
-passw = app.config['ADMIN_PASS']
-log_file = app.config['LOG_FILE']
+from config import settings
+
+query_url = settings.config['RAB_QUERY_API']
+email = settings.config['ADMIN_EMAIL']
+passw = settings.config['ADMIN_PASS']
+log_file = settings.config['LOG_FILE']
+throttle = settings.config['THROTTLE']
 
 logger = logging.getLogger(__name__)
 handler = logging.handlers.RotatingFileHandler(
@@ -239,6 +241,7 @@ def main(uri=None, all_uris=False):
     elif uri:
         uri_tuples.append( (uri, uri[33:]) )
     for uri_tup in uri_tuples:
+        time.sleep(throttle)
         logger.info('Building roster for: {}'.format(uri_tup[1]))
         try:
             roster_resp = query_roster(uri_tup[0])
@@ -263,8 +266,10 @@ def main(uri=None, all_uris=False):
                 continue
             unit_data['roster'].append(prsn_data)
         logger.info('Writing JSON for: {}'.format(uri_tup[1]))
-    	with open(os.path.join('app/rosters', uri_tup[1] +'.json'), 'w') as f:
-    		json.dump(unit_data, f, indent=2, sort_keys=True, ensure_ascii=False)
+    	with open(os.path.join('rosters', uri_tup[1] +'.json'), 'w') as f:
+    		json.dump(unit_data, f,
+                indent=2, sort_keys=True, ensure_ascii=False)
+    logger.info('Roster build complete')
 
 if __name__ == "__main__":
     arg_parse = argparse.ArgumentParser()

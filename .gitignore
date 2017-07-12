@@ -1,4 +1,4 @@
 *.pyc
 logs/*
 config/development.py
-app/rosters/*.json
+rosters/*.json
