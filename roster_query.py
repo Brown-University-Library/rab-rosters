@@ -177,6 +177,7 @@ def query_roster(org_uri):
     if resp.status_code == 200:
         return resp.json()
     else:
+        logger.error('Bad response from Query API: {}'.format(resp.text))
         return []
 
 def extract_education_data(dataList):
