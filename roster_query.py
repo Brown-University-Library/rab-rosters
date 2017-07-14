@@ -56,8 +56,8 @@ def mint_roster_obj():
         'full' : '',
         'title' : '',
         'email' : '',
-        'image' : 'https://vivo.brown.edu',
-        'thumbnail' : 'https://vivo.brown.edu',
+        'image' : '',
+        'thumbnail' : '',
         'overview' : '',
         'affiliations' : [],
         'topics' : [],
@@ -87,8 +87,8 @@ def query_roster(org_uri):
                 vivo:overview ?overview ;
                 vivo:educationalTraining ?edu ;
                 #pseudo-properties
-                tmp:image ?photo ;
-                tmp:fullImage ?miURL ;
+                tmp:image ?thumb ;
+                tmp:fullImage ?photo ;
                 tmp:affiliations ?orgName ;
                 tmp:degreeStr ?degreeStr;
                 tmp:researchArea ?raName ;
@@ -164,10 +164,12 @@ def query_roster(org_uri):
                 #main image
                 ?mi vitro:downloadLocation ?miDl .
                 ?miDl vitro:directDownloadUrl ?miURL .
+                BIND(CONCAT('https://vivo.brown.edu', ?miURL) as ?photo) .
                 #thumbnail
                 ?mi vitro:thumbnailImage ?ti .
                 ?ti vitro:downloadLocation ?dl .
-                ?dl vitro:directDownloadUrl ?photo .
+                ?dl vitro:directDownloadUrl ?tiURL .
+                BIND(CONCAT('https://vivo.brown.edu', ?tiURL) as ?thumb) .
             }}
         }}
     """.format(org_uri)
