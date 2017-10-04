@@ -76,7 +76,8 @@ def query_roster(org_uri):
         PREFIX vivo:	<http://vivoweb.org/ontology/core#>
         PREFIX tmp:		<http://temporary.name.space/>
         CONSTRUCT {{
-            ?subject a vivo:FacultyMember ;
+            ?subject a vivo:FacultyMember,
+                blocal:BrownThing ;
                 #label, first, last, email required
                 tmp:fullName ?name ;
                 foaf:firstName ?first ;
@@ -100,9 +101,11 @@ def query_roster(org_uri):
         }}
         WHERE {{
             #required - label, first, last
+            #BrownThing to ignore inactive faculty
             {{
             ?subject blocal:hasAffiliation <{0}> ;
-                a vivo:FacultyMember ;
+                a vivo:FacultyMember,
+                blocal:BrownThing ;
                 rdfs:label ?name ;
                 foaf:firstName ?first ;
                 foaf:lastName ?last .
@@ -110,32 +113,38 @@ def query_roster(org_uri):
             #optional - middle name
             UNION {{
                 ?subject blocal:hasAffiliation <{0}> ;
+                        a blocal:BrownThing ;
                 	vivo:middleName ?middle .
             }}
             #optional - title
             UNION {{
                 ?subject blocal:hasAffiliation <{0}> ;
+                        a blocal:BrownThing ;
                 	vivo:preferredTitle ?title .
             }}
             #optional - email
             UNION {{
                 ?subject blocal:hasAffiliation <{0}> ;
+                        a blocal:BrownThing ;
                 	vivo:primaryEmail ?email .
             }}
             #optional - overview
             UNION {{
                 ?subject blocal:hasAffiliation <{0}> ;
+                        a blocal:BrownThing ;
                 	vivo:overview ?overview .
             }}
             #optional - affiliations
             UNION {{
                 ?subject blocal:hasAffiliation <{0}> ;
+                        a blocal:BrownThing ;
                 	blocal:hasAffiliation ?org .
                 ?org rdfs:label ?orgName .
             }}
             #optional - education
             UNION {{
                 ?subject blocal:hasAffiliation <{0}> ;
+                        a blocal:BrownThing ;
                 	vivo:educationalTraining ?edu .
                 ?edu a vivo:EducationalTraining ;
                 	blocal:degreeDate ?degreeDate;
@@ -146,6 +155,7 @@ def query_roster(org_uri):
             #optional - research areas
             UNION {{
                 ?subject blocal:hasAffiliation <{0}> ;
+                        a blocal:BrownThing ;
                 	vivo:hasResearchArea ?ra .
                 ?ra a blocal:ResearchArea ;
                     rdfs:label ?raName .
@@ -153,6 +163,7 @@ def query_roster(org_uri):
             #optional - research country
             UNION {{
                 ?subject blocal:hasAffiliation <{0}> ;
+                        a blocal:BrownThing ;
                 	blocal:hasGeographicResearchArea ?country .
                 ?country a blocal:Country ;
                     rdfs:label ?countryName .
@@ -160,6 +171,7 @@ def query_roster(org_uri):
             #optional - photos
             UNION {{
                 ?subject blocal:hasAffiliation <{0}> ;
+                        a blocal:BrownThing ;
                 	vitro:mainImage ?mi .
                 #main image
                 ?mi vitro:downloadLocation ?miDl .
