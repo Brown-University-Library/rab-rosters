@@ -27,13 +27,13 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-prp_map = {
+attrMap = {
     '@id': 'url',
     'http://xmlns.com/foaf/0.1/firstName' : 'first',
     'http://xmlns.com/foaf/0.1/lastName' : 'last',
     'http://vivoweb.org/ontology/core#middleName' : 'middle',
     'http://temporary.name.space/fullName' : 'full',
-    'http://vivoweb.org/ontology/core#preferredTitle' : 'title',
+    'http://vivoweb.org/ontology/core#preferredTitle' : 'combined_title',
     'http://vivoweb.org/ontology/core#primaryEmail' : 'email',
     'http://temporary.name.space/fullImage' : 'image',
     'http://temporary.name.space/image' : 'thumbnail',
@@ -44,7 +44,9 @@ prp_map = {
     'http://vivoweb.org/ontology/core#educationalTraining' : 'education',
     'http://temporary.name.space/eduOrg' : 'organization',
     'http://temporary.name.space/degreeTitle' :'degree',
-    'http://vivo.brown.edu/ontology/vivo-brown/degreeDate' : 'year'
+    'http://vivo.brown.edu/ontology/vivo-brown/degreeDate' : 'year',
+    'http://temporary.name.space/facultyTitle' :'faculty_title',
+    'http://temporary.name.space/adminTitle' :'admin_title'
 }
 
 def mint_roster_obj():
@@ -54,7 +56,7 @@ def mint_roster_obj():
         'last' : '',
         'middle' : '',
         'full' : '',
-        'title' : '',
+        'titles' : {},
         'email' : '',
         'image' : '',
         'thumbnail' : '',
@@ -93,7 +95,9 @@ def query_roster(org_uri):
                 tmp:affiliations ?orgName ;
                 tmp:degreeStr ?degreeStr;
                 tmp:researchArea ?raName ;
-                tmp:researchGeo ?countryName .
+                tmp:researchGeo ?countryName ;
+                tmp:facultyTitle ?facultyTitle ;
+                tmp:adminTitle ?adminTitle .
             ?edu a vivo:EducationalTraining ;
                 blocal:degreeDate ?degreeDate;
                 tmp:eduOrg ?eduLabel ;
@@ -183,6 +187,22 @@ def query_roster(org_uri):
                 ?dl vitro:directDownloadUrl ?tiURL .
                 BIND(CONCAT('https://vivo.brown.edu', ?tiURL) as ?thumb) .
             }}
+            #optional - faculty titles
+            UNION {{
+                ?subject blocal:hasAffiliation <{0}> ;
+                        a blocal:BrownThing ;
+                    vivo:personInPosition ?pos .
+                ?pos a vivo:FacultyPosition;
+                    rdfs:label ?facultyTitle.
+            }}
+            #optional - administrative titles
+            UNION {{
+                ?subject blocal:hasAffiliation <{0}> ;
+                        a blocal:BrownThing ;
+                    vivo:personInPosition ?pos .
+                ?pos a vivo:FacultyAdministrativePosition;
+                    rdfs:label ?adminTitle.
+            }}
         }}
     """.format(org_uri)
     headers = {'Accept': 'application/json', 'charset':'utf-8'}	
@@ -216,9 +236,9 @@ def cast_edu_data(data):
         if k in ('@id', '@type'):
             continue
         else:
-            alias = prp_map[k]
+            attr = attrMap[k]
             for obj in v:
-                out[alias] = obj['@value'].encode('utf-8')
+                out[attr] = obj['@value']
     return out
 
 def cast_roster_data(data, edu_map):
@@ -226,21 +246,28 @@ def cast_roster_data(data, edu_map):
     for k, v in data.items():
         if k == '@type':
             continue
-        alias = prp_map[k]
-        if alias == 'education':
+        attr = attrMap[k]
+        if attr == 'education':
             for eduId in v:
                 eduObj = edu_map[eduId['@id']]
                 edu_cast = cast_edu_data(eduObj)
-                out[alias].append(edu_cast)
-        elif alias == 'url':
-            out[alias] += v
-        elif alias in ( 'affiliations','topics','countries' ):
+                out[attr].append(edu_cast)
+        elif attr == 'url':
+            out[attr] += v
+        elif attr in ( 'affiliations','topics','countries' ):
             for obj in v:
-                out[alias].append(obj['@value'].encode('utf-8'))
-        elif alias in ( 'first','last','middle','title', 'full',
+                out[attr].append(obj['@value'])
+        elif attr in ( 'first','last','middle','title', 'full',
                         'email','image','thumbnail','overview'):
             for obj in v:
-                out[alias] += obj['@value'].encode('utf-8')
+                out[attr] += obj['@value']
+        elif attr in ('faculty_title', 'admin_title', 'combined_title'):
+            attrs = {
+                'faculty_title': 'faculty',
+                'admin_title': 'administrative',
+                'combined_title': 'combined'
+            }
+            out['titles'][attrs[attr]] = [ obj['@value'] for obj in v ]
         else:
             raise Exception(k)
     return out
@@ -281,8 +308,8 @@ def main(uri=None, all_uris=False):
                 continue
             unit_data['roster'].append(prsn_data)
         logger.info('Writing JSON for: {}'.format(uri_tup[1]))
-    	with open(os.path.join('rosters', uri_tup[1] +'.json'), 'w') as f:
-    		json.dump(unit_data, f,
+        with open(os.path.join('rosters', uri_tup[1] +'.json'), 'w') as f:
+            json.dump(unit_data, f,
                 indent=2, sort_keys=True, ensure_ascii=False)
     logger.info('Roster build complete')
 

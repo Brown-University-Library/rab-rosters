@@ -2,3 +2,5 @@
 logs/*
 config/development.py
 rosters/*.json
+.direnv/
+.envrc
