@@ -276,7 +276,7 @@ def main(uri=None, all_uris=False):
     logger.info('Initiating roster build')
     uri_tuples = []
     if all_uris:
-        with open('data/org_ids.csv','rb') as f:
+        with open('data/org_ids.csv','r') as f:
             rdr = csv.reader(f)
             for row in rdr:
                 uri_tuples.append(row)
