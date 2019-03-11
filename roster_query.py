@@ -8,7 +8,7 @@ import time
 import logging
 import logging.handlers
 
-from config import settings
+from config import development as settings
 
 query_url = settings.config['RAB_QUERY_API']
 email = settings.config['ADMIN_EMAIL']
@@ -33,7 +33,7 @@ attrMap = {
     'http://xmlns.com/foaf/0.1/lastName' : 'last',
     'http://vivoweb.org/ontology/core#middleName' : 'middle',
     'http://temporary.name.space/fullName' : 'full',
-    'http://vivoweb.org/ontology/core#preferredTitle' : 'combined_title',
+    'http://vivoweb.org/ontology/core#preferredTitle' : 'title',
     'http://vivoweb.org/ontology/core#primaryEmail' : 'email',
     'http://temporary.name.space/fullImage' : 'image',
     'http://temporary.name.space/image' : 'thumbnail',
@@ -56,7 +56,8 @@ def mint_roster_obj():
         'last' : '',
         'middle' : '',
         'full' : '',
-        'titles' : {},
+        'title' : '',
+        'title_detail' : {},
         'email' : '',
         'image' : '',
         'thumbnail' : '',
@@ -261,13 +262,12 @@ def cast_roster_data(data, edu_map):
                         'email','image','thumbnail','overview'):
             for obj in v:
                 out[attr] += obj['@value']
-        elif attr in ('faculty_title', 'admin_title', 'combined_title'):
+        elif attr in ('faculty_title', 'admin_title'):
             attrs = {
                 'faculty_title': 'faculty',
                 'admin_title': 'administrative',
-                'combined_title': 'combined'
             }
-            out['titles'][attrs[attr]] = [ obj['@value'] for obj in v ]
+            out['title_detail'][attrs[attr]] = [ obj['@value'] for obj in v ]
         else:
             raise Exception(k)
     return out
