@@ -8,7 +8,7 @@ import time
 import logging
 import logging.handlers
 
-from config import development as settings
+from config import settings
 
 query_url = settings.config['RAB_QUERY_API']
 email = settings.config['ADMIN_EMAIL']
